@@ -47,82 +47,66 @@ class StartGame(Menu):
     def play_intro_sequence(self):
         self.display.fill((0, 0, 0))
         pygame.display.flip()
-        
-        if not pygame.display.get_active():
-            print("Erro: Janela do jogo não está ativa!")
+
+        audio_path = os.path.join("Sons", "SomIntro.mp3")
+        if not os.path.exists(audio_path):
+            print(f"Erro: Arquivo de áudio não encontrado em {audio_path}")
             return False
 
-        try:
-            audio_path = os.path.join("Sons", "SomIntro.mp3")
-            if not os.path.exists(audio_path):
-                print(f"Erro: Arquivo de áudio não encontrado em {audio_path}")
-                return False
+        # Carrega e toca a música
+        pygame.mixer.music.load(audio_path)
+        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.play()
 
-            pygame.mixer.music.stop()
-            intro_audio = pygame.mixer.Sound(audio_path)
-            intro_audio.set_volume(0.5)
+        total_images = 533
+        frame_duration = 70  # ms por imagem
+        clock = pygame.time.Clock()
 
-            images = []
-            image_files = sorted([f for f in os.listdir("Intro") if f.startswith("intro_") and f.endswith(".jpg")])
+        for i in range(1, total_images + 1):
+            img_filename = f"intro ({i}).jpg"
+            img_path = os.path.join("Intro", img_filename)
 
-            if not image_files:
-                print("Nenhuma imagem encontrada na pasta Intro!")
-                return False
+            if not os.path.exists(img_path):
+                print(f"Imagem não encontrada: {img_path}")
+                # Opcional: criar uma imagem de fallback
+                img = pygame.Surface((self.DISPLAY_W, self.DISPLAY_H))
+                img.fill((0, 0, 0))  # preto ou uma cor chamativa
+            else:
+                img = pygame.image.load(img_path).convert()
+                img = pygame.transform.scale(img, (self.DISPLAY_W, self.DISPLAY_H))
 
-            for img_file in image_files:
-                img_path = os.path.join("Intro", img_file)
-                try:
-                    img = pygame.image.load(img_path).convert()
-                    img = pygame.transform.scale(img, (self.DISPLAY_W, self.DISPLAY_H))
-                    images.append(img)
-                except Exception as e:
-                    print(f"Erro ao carregar {img_path}: {e}")
-                    fallback = pygame.Surface((self.DISPLAY_W, self.DISPLAY_H))
-                    fallback.fill((0, 0, 0))
-                    images.append(fallback)
+            start_time = pygame.time.get_ticks()
 
-            self.display.blit(images[0], (0, 0))
-            self.tela.blit(self.display, (0, 0))
-            pygame.display.update()
-
-            intro_audio.play()
-
-            current_frame = 1
-            frame_delay = int(intro_audio.get_length() * 450 / len(images))
-            running = True
-
-            while running and current_frame < len(images):
+            displaying = True
+            while displaying:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
-                        running = False
                         self.game.playing = False
                         return False
-                    elif event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_RETURN:
-                            print("Introdução pulada pelo usuário.")
-                            intro_audio.stop()
-                            self.play_game_music()
-                            return True
+                    elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                        pygame.mixer.music.stop()
+                        self.play_game_music()
+                        return True
 
-                self.display.blit(images[current_frame], (0, 0))
+                self.display.blit(img, (0, 0))
                 self.tela.blit(self.display, (0, 0))
                 pygame.display.update()
 
-                pygame.time.delay(frame_delay)
-                current_frame += 1
+                # Verifica se o tempo da imagem acabou
+                if pygame.time.get_ticks() - start_time >= frame_duration:
+                    displaying = False
 
-            while pygame.mixer.get_busy():
-                pygame.time.delay(100)
+                clock.tick(60)  # Limita a 60 FPS
 
-            intro_audio.stop()
-            self.play_game_music()
-            return True
+        # Aguarda o final da música, se ainda estiver tocando
+        while pygame.mixer.music.get_busy():
+            pygame.time.wait(100)
 
-        except Exception as e:
-            print(f"Erro crítico na introdução: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+        pygame.mixer.music.stop()
+        self.play_game_music()
+        return True
+
+
 
     def play_game_music(self):
         try:
@@ -135,14 +119,28 @@ class StartGame(Menu):
 
     def handle_player_death(self):
         if not self.aventureiro.state.startswith('morrendo'):
-            self.aventureiro.die()
-            self.death_time = pygame.time.get_ticks()
-            self.som_andando.stop()
-            self.som_atacando.stop()
-            pygame.mixer.music.stop()
+            # Para TODOS os sons (incluindo inimigos, passos, ataques, etc.)
+            pygame.mixer.stop()  # Isso para todos os canais de áudio
+            pygame.mixer.music.stop()  # Para a música de fundo
+            
+            # Toca o som de morte (opcional)
             death_sound = pygame.mixer.Sound(os.path.join("Sons", "SomApanhando.wav"))
             death_sound.play()
-
+            
+            # Inicia a animação de morte
+            self.aventureiro.die()
+            self.death_time = pygame.time.get_ticks()
+            
+            # Toca a música de derrota (sem loop, ou em loop dependendo do arquivo)
+            defeat_music_path = os.path.join("Sons", "SomDerrota.mp3")
+            if os.path.exists(defeat_music_path):
+                pygame.mixer.music.load(defeat_music_path)
+                pygame.mixer.music.set_volume(0.5)
+                pygame.mixer.music.play()  # Se quiser loop, use play(-1)
+            
+            # Inicia a cutscene de derrota
+            self.play_defeat_cutscene()
+            
     def render(self):
         self.display.fill(self.game.BLACK)
         
@@ -179,31 +177,88 @@ class StartGame(Menu):
             dialog_data = [
                 {
                     'speaker': 'Cavaleiro',
-                    'text': "Olá, aventureiro! Como vai você?",
+                    'text':  "...Você... sobreviveu? Então... ainda há uma chance...",
                     'image': os.path.join("NPC", "NPC_portrait.png")
                 },
                 {
                     'speaker': 'Heroi',
-                    'text': "Estou bem, obrigado. O que você está fazendo aqui?",
+                    'text':   "Que chance? O que aconteceu aqui?",
                     'image': os.path.join("SprintHeroi", "heroi.png")
                 },
                 {
                     'speaker': 'Cavaleiro',
-                    'text': "Estou guardando esta área. Cuidado com os monstros à frente!",
+                    'text':  "Eles... tomaram tudo... luz, terra, sangue... não confie em ninguém...",
                     'image': os.path.join("NPC", "NPC_portrait.png")
                 },
                 {
                     'speaker': 'Heroi',
-                    'text': "Obrigado pelo aviso! Vou me preparar.",
+                    'text': "Mas quem fez isso? Ainda tem alguém vivo?",
                     'image': os.path.join("SprintHeroi", "heroi.png")
-                }
+                },
+                {
+                    'speaker': 'Cavaleiro',
+                    'text':  "...Ela ainda respirava... mesmo com a carne dela se abrindo... eu... eu não consegui salva-la...",
+                    'image': os.path.join("NPC", "NPC_portrait.png")
+                },
+                {
+                    'speaker': 'Heroi',
+                    'text': "Você foi atacado... isso foi obra de um deles?",
+                    'image': os.path.join("SprintHeroi", "heroi.png")
+                },
+                {
+                    'speaker': 'Cavaleiro',
+                    'text':   "...Esse maldito vírus... tá devorando ela por dentro... esse antídoto... é tudo que resta. Leve pra ela. Antes que ela vire uma daquelas coisas.",
+                    'image': os.path.join("NPC", "NPC_portrait.png")
+                },
+                {
+                    'speaker': 'Heroi',
+                    'text': "Ela não vai morrer como um monstro. Eu juro.",
+                    'image': os.path.join("SprintHeroi", "heroi.png")
+                },
+                {
+                    'speaker': 'Cavaleiro',
+                    'text':    "...Ela... minha filha... foi mordida... por aquela coisa...",
+                    'image': os.path.join("NPC", "NPC_portrait.png")
+                },
+                {
+                    'speaker': 'Heroi',
+                    'text':   "Você tá ferido... o que aconteceu? Quem era ela?",
+                    'image': os.path.join("SprintHeroi", "heroi.png")
+                },
+                {
+                    'speaker': 'Cavaleiro',
+                    'text':     "...Tem pouco tempo... esse antídoto... leve até ela... Salve-a, por favor...",
+                    'image': os.path.join("NPC", "NPC_portrait.png")
+                },
+                {
+                    'speaker': 'Heroi',
+                    'text':   "Eu prometo. Ela vai sobreviver. Nem que eu tenha que atravessar o inferno.",
+                    'image': os.path.join("SprintHeroi", "heroi.png")
+                },
+                {
+                    'speaker': 'Cavaleiro',
+                    'text':      "...Eu devia ter acabado com o sofrimento dela... mas eu... eu não tive coragem. Ela ainda me olhava como se fosse minha garotinha...",
+                    'image': os.path.join("NPC", "NPC_portrait.png")
+                },
+                {
+                    'speaker': 'Heroi',
+                    'text':    "Você tentou protegê-la... o que aconteceu com vocês?",
+                    'image': os.path.join("SprintHeroi", "heroi.png")
+                },
+                {
+                    'speaker': 'Cavaleiro',
+                    'text':       "...Ela foi mordida. Eu fugi. Como um covarde. Esse antídoto... é tudo que consegui antes de... de ser atacado. Por favor... salve ela. Faça o que eu não consegui.",
+                    'image': os.path.join("NPC", "NPC_portrait.png")
+                },
+                {
+                    'speaker': 'Heroi',
+                    'text':    "Você não vai morrer em vão. Vou tirá-la dessa... nem que eu precise matar cada maldito infectado no caminho.",
+                    'image': os.path.join("SprintHeroi", "heroi.png")
+                },
             ]
             
             dialog_sounds = [
                 os.path.join("Sons", "dialogo1.wav"),
-                os.path.join("Sons", "dialogo2.wav"),
-                os.path.join("Sons", "dialogo3.wav"),
-                os.path.join("Sons", "dialogo4.wav")
             ]
             
             npc_x = 20.5 * self.TILE_SIZE
@@ -258,6 +313,10 @@ class StartGame(Menu):
                 if current_time - self.death_time > self.death_cooldown:
                     self.game_over = True
             return
+        
+        if self.boss and self.boss.is_dead and not self.boss.already_dead:
+            self.boss.already_dead = True  # Adicione esse atributo no Boss se quiser evitar múltiplas chamadas
+            self.play_boss_cutscene()
 
         if self.aventureiro.rect.right >= self.mapa_image.get_width():
             if self.current_map == 1:
@@ -447,5 +506,151 @@ class StartGame(Menu):
         
         self.create_npc_for_map()
         self.create_enemies()
-        
         self.play_game_music()
+
+        
+    def play_boss_cutscene(self):
+        self.display.fill((0, 0, 0))
+        pygame.display.flip()
+
+        # Carrega e toca o som da cutscene de vitória
+        audio_path = os.path.join("Sons", "SomVitoria.mp3")
+        if os.path.exists(audio_path):
+            pygame.mixer.music.load(audio_path)
+            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.play()
+        else:
+            print(f"Erro: Arquivo de áudio não encontrado em {audio_path}")
+
+        # Carrega as imagens da cutscene de vitória
+        cutscene_folder = os.path.join("Cutscene", "Vitoria")
+        if os.path.exists(cutscene_folder):
+            images = []
+            for img_name in sorted(os.listdir(cutscene_folder)):
+                if img_name.endswith((".png", ".jpg")):
+                    img_path = os.path.join(cutscene_folder, img_name)
+                    try:
+                        img = pygame.image.load(img_path).convert()
+                        img = pygame.transform.scale(img, (self.DISPLAY_W, self.DISPLAY_H))
+                        images.append(img)
+                    except:
+                        print(f"Erro ao carregar imagem: {img_path}")
+                        # Imagem de fallback
+                        img = pygame.Surface((self.DISPLAY_W, self.DISPLAY_H))
+                        img.fill((0, 50, 0))  # Verde escuro
+                        images.append(img)
+            
+            # Mostra as imagens em sequência com transições suaves
+            frame_duration = 3000  # 3 segundos por imagem
+            fade_duration = 500   # 0.5 segundos de fade
+            
+            for i, img in enumerate(images):
+                start_time = pygame.time.get_ticks()
+                displaying = True
+                
+                # Fade in para a primeira imagem
+                if i == 0:
+                    for alpha in range(0, 255, 5):
+                        img.set_alpha(alpha)
+                        self.display.blit(img, (0, 0))
+                        self.tela.blit(self.display, (0, 0))
+                        pygame.display.flip()
+                        pygame.time.delay(20)
+                
+                while displaying:
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            self.game.playing = False
+                            return
+                        elif event.type == pygame.KEYDOWN:
+                            # Permite pular a cutscene
+                            displaying = False
+                            break
+                    
+                    self.display.blit(img, (0, 0))
+                    self.tela.blit(self.display, (0, 0))
+                    pygame.display.flip()
+                    
+                    current_time = pygame.time.get_ticks()
+                    elapsed = current_time - start_time
+                    
+                    # Fade out no final da imagem (exceto a última)
+                    if i < len(images) - 1 and elapsed > frame_duration - fade_duration:
+                        alpha = 255 * (1 - (elapsed - (frame_duration - fade_duration)) / fade_duration)
+                        img.set_alpha(max(0, int(alpha)))
+                    
+                    if elapsed >= frame_duration:
+                        displaying = False
+                    
+                    pygame.time.delay(30)
+                
+                # Fade in para a próxima imagem
+                if i < len(images) - 1:
+                    next_img = images[i+1]
+                    next_img.set_alpha(0)
+                    for alpha in range(0, 255, 5):
+                        self.display.blit(img, (0, 0))
+                        next_img.set_alpha(alpha)
+                        self.display.blit(next_img, (0, 0))
+                        self.tela.blit(self.display, (0, 0))
+                        pygame.display.flip()
+                        pygame.time.delay(20)
+        else:
+            print(f"Pasta da cutscene não encontrada: {cutscene_folder}")
+            # Fallback simples
+            self.game.draw_text("VITÓRIA", 50, self.DISPLAY_W//2, self.DISPLAY_H//2)
+            pygame.display.flip()
+            pygame.time.delay(3000)
+
+        # Após a cutscene, mostra a tela de créditos/final
+        self.game.draw_text("FIM DE JOGO", 40, self.DISPLAY_W // 2, self.DISPLAY_H - 60)
+        pygame.display.update()
+        pygame.time.delay(4000)
+        self.game.playing = False
+        
+    def play_defeat_cutscene(self):
+        self.display.fill((0, 0, 0))
+        pygame.display.flip()
+
+        cutscene_folder = os.path.join("Lose", "lose")
+        if os.path.exists(cutscene_folder):
+            images = []
+            for img_name in sorted(os.listdir(cutscene_folder)):
+                if img_name.endswith((".jpg")):
+                    img_path = os.path.join(cutscene_folder, img_name)
+                    try:
+                        img = pygame.image.load(img_path).convert()
+                        img = pygame.transform.scale(img, (self.DISPLAY_W, self.DISPLAY_H))
+                        images.append(img)
+                    except:
+                        print(f"Erro ao carregar imagem: {img_path}")
+
+            frame_duration = 3000
+
+            for img in images:
+                start_time = pygame.time.get_ticks()
+                displaying = True
+
+                while displaying:
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            self.game.playing = False
+                            return
+                        elif event.type == pygame.KEYDOWN:
+                            displaying = False
+                            break
+
+                    self.display.blit(img, (0, 0))
+                    self.tela.blit(self.display, (0, 0))
+                    pygame.display.flip()
+
+                    if pygame.time.get_ticks() - start_time >= frame_duration:
+                        displaying = False
+
+                    pygame.time.delay(30)
+        else:
+            self.game.draw_text("VOCÊ MORREU", 50, self.DISPLAY_W // 2, self.DISPLAY_H // 2)
+            pygame.display.flip()
+            pygame.time.delay(3000)
+
+        self.game_over = True
