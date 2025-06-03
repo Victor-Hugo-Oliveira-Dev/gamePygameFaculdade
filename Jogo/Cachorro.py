@@ -63,7 +63,7 @@ class Cachorro(pygame.sprite.Sprite):
     def load_animations(self):
         animation_frames = {
             'parado': 6, 'andando_esquerda': 5,
-            'atacando_esquerda': 5, 'levando_dano_esquerda': 4,
+            'atacando_esquerda': 3, 'levando_dano_esquerda': 4,
             'morrendo_esquerda': 7
         }
 

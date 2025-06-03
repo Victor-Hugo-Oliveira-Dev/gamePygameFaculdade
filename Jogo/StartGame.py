@@ -30,6 +30,9 @@ class StartGame(Menu):
         self.som_atacando = pygame.mixer.Sound(os.path.join("Sons", "SomAtacando.wav"))
         self.som_andando = pygame.mixer.Sound(os.path.join("Sons", "SomAndando.wav"))
         self.boss_music = pygame.mixer.Sound(os.path.join("Sons", "SomAndando.wav"))
+        self.som_atacando.set_volume(0.1)
+        self.som_andando.set_volume(0.1)
+        self.boss_music.set_volume(0.1)
         self.boss = None
         self.current_map = 1
         self.collision_map, self.mapa_image = load_map(self.current_map)
@@ -315,7 +318,7 @@ class StartGame(Menu):
             return
         
         if self.boss and self.boss.is_dead and not self.boss.already_dead:
-            self.boss.already_dead = True  # Adicione esse atributo no Boss se quiser evitar múltiplas chamadas
+            self.boss.already_dead = True  
             self.play_boss_cutscene()
 
         if self.aventureiro.rect.right >= self.mapa_image.get_width():
@@ -611,6 +614,14 @@ class StartGame(Menu):
     def play_defeat_cutscene(self):
         self.display.fill((0, 0, 0))
         pygame.display.flip()
+        
+        audio_path = os.path.join("Sons", "SomDerrota.mp3")
+        if os.path.exists(audio_path):
+            pygame.mixer.music.load(audio_path)
+            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.play()
+        else:
+            print(f"Erro: Arquivo de áudio não encontrado em {audio_path}")
 
         cutscene_folder = os.path.join("Lose", "lose")
         if os.path.exists(cutscene_folder):
