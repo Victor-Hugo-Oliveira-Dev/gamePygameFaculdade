@@ -29,7 +29,7 @@ class StartGame(Menu):
         self.aventureiro.rect.center = (self.DISPLAY_W // 2, self.DISPLAY_H // 2)
         self.som_atacando = pygame.mixer.Sound(os.path.join("Sons", "SomAtacando.wav"))
         self.som_andando = pygame.mixer.Sound(os.path.join("Sons", "SomAndando.wav"))
-        self.boss_music = pygame.mixer.Sound(os.path.join("Sons", "SomAndando.wav"))
+        self.boss_music = pygame.mixer.Sound(os.path.join("Sons", "MusicaBoss.wav"))
         self.som_atacando.set_volume(0.1)
         self.som_andando.set_volume(0.1)
         self.boss_music.set_volume(0.1)
@@ -114,7 +114,7 @@ class StartGame(Menu):
     def play_game_music(self):
         try:
             pygame.mixer.music.load(os.path.join("Sons", "MusicaJogo.wav"))
-            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.set_volume(0.2)
             pygame.mixer.music.play(-1)
             print("Música do jogo iniciada.")
         except Exception as e:
@@ -135,7 +135,7 @@ class StartGame(Menu):
             self.death_time = pygame.time.get_ticks()
             
             # Toca a música de derrota (sem loop, ou em loop dependendo do arquivo)
-            defeat_music_path = os.path.join("Sons", "SomDerrota.mp3")
+            defeat_music_path = os.path.join("Sons", "SomLose.mp3")
             if os.path.exists(defeat_music_path):
                 pygame.mixer.music.load(defeat_music_path)
                 pygame.mixer.music.set_volume(0.5)
@@ -210,7 +210,8 @@ class StartGame(Menu):
                 },
                 {
                     'speaker': 'Cavaleiro',
-                    'text':   "...Esse maldito vírus... tá devorando ela por dentro... esse antídoto... é tudo que resta. Leve pra ela. Antes que ela vire uma daquelas coisas.",
+                    'text':   "...Esse maldito vírus... tá devorando ela por dentro... esse antídoto... ",
+                    'text': "é tudo que resta. Leve pra ela. Antes que ela vire uma daquelas coisas.",
                     'image': os.path.join("NPC", "NPC_portrait.png")
                 },
                 {
@@ -240,7 +241,8 @@ class StartGame(Menu):
                 },
                 {
                     'speaker': 'Cavaleiro',
-                    'text':      "...Eu devia ter acabado com o sofrimento dela... mas eu... eu não tive coragem. Ela ainda me olhava como se fosse minha garotinha...",
+                    'text':      "...Eu devia ter acabado com o sofrimento dela... mas eu... eu não tive coragem. ",
+                    'text': "Ela ainda me olhava como se fosse minha garotinha...",
                     'image': os.path.join("NPC", "NPC_portrait.png")
                 },
                 {
@@ -250,20 +252,17 @@ class StartGame(Menu):
                 },
                 {
                     'speaker': 'Cavaleiro',
-                    'text':       "...Ela foi mordida. Eu fugi. Como um covarde. Esse antídoto... é tudo que consegui antes de... de ser atacado. Por favor... salve ela. Faça o que eu não consegui.",
+                    'text':       "...Ela foi mordida. Eu fugi. Como um covarde. Esse antídoto...",
+                    'text': "é tudo que consegui antes de... de ser atacado. Por favor... salve ela. Faça o que eu não consegui.",
                     'image': os.path.join("NPC", "NPC_portrait.png")
                 },
                 {
                     'speaker': 'Heroi',
-                    'text':    "Você não vai morrer em vão. Vou tirá-la dessa... nem que eu precise matar cada maldito infectado no caminho.",
+                    'text':    "Você não vai morrer em vão. Vou tirá-la dessa... nem que eu precise matar cada maldito infectado",
                     'image': os.path.join("SprintHeroi", "heroi.png")
                 },
             ]
-            
-            dialog_sounds = [
-                os.path.join("Sons", "dialogo1.wav"),
-            ]
-            
+                
             npc_x = 20.5 * self.TILE_SIZE
             npc_y = 18 * self.TILE_SIZE
             self.npc = NPC(self.game, npc_x, npc_y, dialog_data)
@@ -311,15 +310,16 @@ class StartGame(Menu):
 
         if self.aventureiro.state.startswith('morrendo'):
             self.aventureiro.update()
-            if self.aventureiro.is_dead():
-                current_time = pygame.time.get_ticks()
-                if current_time - self.death_time > self.death_cooldown:
-                    self.game_over = True
+            if self.aventureiro.is_dead:
+                self.play_defeat_cutscene()
+                self.reset_game()  # reinicia após cutscene
             return
         
         if self.boss and self.boss.is_dead and not self.boss.already_dead:
-            self.boss.already_dead = True  
-            self.play_boss_cutscene()
+            if self.boss.alpha <= 0:
+                self.boss.already_dead = True
+                self.play_boss_cutscene()
+                self.game.playing = False
 
         if self.aventureiro.rect.right >= self.mapa_image.get_width():
             if self.current_map == 1:
@@ -615,7 +615,7 @@ class StartGame(Menu):
         self.display.fill((0, 0, 0))
         pygame.display.flip()
         
-        audio_path = os.path.join("Sons", "SomDerrota.mp3")
+        audio_path = os.path.join("Sons", "SomLose.mp3")
         if os.path.exists(audio_path):
             pygame.mixer.music.load(audio_path)
             pygame.mixer.music.set_volume(0.5)

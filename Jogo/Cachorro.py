@@ -15,12 +15,12 @@ class Cachorro(pygame.sprite.Sprite):
         self.collision_map = []
 
         self.sounds = {
-            'ataque': pygame.mixer.Sound(os.path.join("Sons", "1 mob", "morrendo.wav")),
-            'dano': pygame.mixer.Sound(os.path.join("Sons", "1 mob", "morrendo.wav")),
-            'morte': pygame.mixer.Sound(os.path.join("Sons", "1 mob", "morrendo.wav")),
+            'ataque': pygame.mixer.Sound(os.path.join("Sons", "cachorro", "atacando.wav")),
+            'dano': pygame.mixer.Sound(os.path.join("Sons", "cachorro", "parado.wav")),
+            'morte': pygame.mixer.Sound(os.path.join("Sons", "cachorro", "morrendo.wav")),
         }
         for sound in self.sounds.values():
-            sound.set_volume(0.4)
+            sound.set_volume(0.05)
 
         self.states = {
             'parado': [], 'andando_direita': [], 'andando_esquerda': [],

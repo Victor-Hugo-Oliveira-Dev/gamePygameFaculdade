@@ -63,7 +63,7 @@ class Zumbi(pygame.sprite.Sprite):
 
         # Timer para levando dano
         self.damage_start_time = 0
-        self.damage_duration = 1000  # 1 segundo
+        self.damage_duration = 500
 
     def load_animations(self):
         animation_frames = {

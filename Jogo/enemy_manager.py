@@ -7,7 +7,9 @@ def get_enemy_config(tile_size):
         1: {
             'class': Zumbi,
             'positions': [
-                (35 * tile_size, 16 * tile_size)
+                (35 * tile_size, 16 * tile_size),
+                (55 * tile_size, 16 * tile_size),
+                (59 * tile_size, 16 * tile_size)
             ]
         },
         2: {
